@@ -1,0 +1,21 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+*.py[cod]
+*.log
+.pytest_cache
+.coverage
+htmlcov
+
+frontend
+jupyter notebooks
+tests
+supabase
+README.md
+requirements.txt
+requirements-dev.txt
+requirements-notebooks.txt

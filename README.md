@@ -4,7 +4,7 @@ An end-to-end resume analysis platform that evaluates a resume for ATS compatibi
 
 I built this project to explore how traditional resume heuristics, semantic embeddings, large language models, and a modern web stack can work together in one useful product. The repository contains both the user-facing application and the notebooks used for data exploration and BERT experiments.
 
-> **Project status:** Active personal project. The application architecture is implemented, but the current repository still requires the fixes and missing research artifacts listed in [Known limitations](#known-limitations) before it can be reproduced completely from a fresh clone.
+> **Project status:** Active personal project. The web application is configured for local development; the research notebooks still require the datasets and trained-model artifacts listed in [Known limitations](#known-limitations).
 
 ## What the project does
 
@@ -341,7 +341,7 @@ The notebooks are research artifacts and are not required to start the web appli
 Install their additional dependencies:
 
 ```bash
-pip install jupyter pandas matplotlib seaborn scikit-learn wordcloud torch
+pip install -r requirements.txt -r requirements-notebooks.txt
 jupyter lab
 ```
 
@@ -395,26 +395,22 @@ The parser uses two PDF extraction implementations for resilience. Database hist
 
 ## Known limitations
 
-- `backend/services/feedback_engine.py` currently contains invalid text on its first line and must be corrected before backend imports can succeed.
-- The configured fallback spaCy model contains a malformed string and needs correction before fallback loading can work.
-- The Groq parser currently contains a first-attempt result-handling defect that requires correction for dependable parsing.
 - Groq is required by the current analysis pipeline; there is no local parsing fallback.
 - Dataset CSV files and fine-tuned model artifacts used by the notebooks are absent.
-- Notebook-only dependencies are not included in `requirements.txt`.
+- Notebook dependencies are maintained separately in `requirements-notebooks.txt`.
 - The fine-tuned BERT model is not connected to the live application.
 - Grammar and some location-analysis inputs currently use default placeholder results in the orchestration pipeline.
 - Scanned image-only PDFs do not have OCR support.
 - Legacy binary `.doc` extraction may depend on detected MIME type but has no dedicated parser equivalent to DOCX.
-- Automated unit, integration, and end-to-end tests are not yet included.
-- Database migration files and deployment manifests are not yet included.
-- The current CORS configuration is deployment-specific and needs a localhost/production configuration strategy.
+- Focused configuration and Groq parser tests are included; broader API, integration, and end-to-end coverage is still needed.
+- A Supabase migration is included, but deployment manifests are not yet included.
 
 ## Roadmap
 
-- [ ] Fix the current startup and Groq parsing defects.
-- [ ] Add `.env.example` and Streamlit secrets templates.
-- [ ] Add repeatable Supabase SQL migrations and RLS policies.
-- [ ] Add unit tests for scoring, parsing, matching, and authentication.
+- [x] Fix the current startup and Groq parsing defects.
+- [x] Add `.env.example` and Streamlit secrets templates.
+- [x] Add a repeatable Supabase SQL migration and RLS policies.
+- [ ] Expand unit tests for scoring, file parsing, matching, and authentication.
 - [ ] Add integration tests for API and database flows.
 - [ ] Evaluate and integrate the fine-tuned embedding model.
 - [ ] Add OCR support for scanned resumes.
@@ -451,6 +447,12 @@ Confirm that `GROQ_API_KEY` is valid and that the configured Groq model is avail
 ### PDF export fails
 
 Install the operating-system libraries required by WeasyPrint, then restart the backend.
+
+## Deployment
+
+The repository includes a production Dockerfile, a Render Blueprint, and a
+frontend-only dependency manifest for a free-tier deployment. Follow the
+step-by-step instructions in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Author
 

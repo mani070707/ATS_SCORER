@@ -115,7 +115,7 @@ def parse_resume(raw_text: str)->Dict:
     raw_response=_call_groq(client, RESUME_SYSTEM_PROMPT, prompt)
     result=_try_parse_json(raw_response)
 
-    if result is None:
+    if result is not None:
         return _validate_resume_result(result)
     
 
@@ -186,7 +186,9 @@ def parse_job_description(raw_text: str) -> Dict:
 
 #it will make sure, that the parse json has all the valid fields we expect
 def _validate_jd_result(result: dict) -> dict:
-    
+    if not isinstance(result, dict):
+        raise ValueError('Groq job-description response must be a JSON object')
+
     defaults = {
         "job_title": "",
         "required_skills": [],
@@ -208,6 +210,8 @@ def _validate_jd_result(result: dict) -> dict:
 
 #to make sure the parse json has all the valid json fields
 def _validate_resume_result(result: dict) -> dict:
+    if not isinstance(result, dict):
+        raise ValueError('Groq resume response must be a JSON object')
 
     defaults = {
         "name": "",
@@ -257,5 +261,4 @@ def _validate_resume_result(result: dict) -> dict:
         proj.setdefault("technologies", [])
 
     return result
-
 

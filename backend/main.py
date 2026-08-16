@@ -9,7 +9,8 @@ from backend.core.config import(
     APP_TITLE, 
     APP_VERSION, 
     SPACY_MODEL_PRIMARY, 
-    SPACY_MODEL_SECONDARY, SENTENCE_TRANSFORMER_MODEL
+    SPACY_MODEL_SECONDARY, SENTENCE_TRANSFORMER_MODEL,
+    validate_runtime_config,
 )
 from backend.api.routes import router
 
@@ -18,6 +19,11 @@ logger=logging.getLogger('ats_resume_scorer')
 @asynccontextmanager
 async def lifespan(app:FastAPI):
     logger.info('Starting ATS Resume Analyzer API...')
+
+    config_errors = validate_runtime_config()
+    if config_errors:
+        formatted = '\n- '.join(config_errors)
+        raise RuntimeError(f'Invalid runtime configuration:\n- {formatted}')
 
     logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
     import spacy
