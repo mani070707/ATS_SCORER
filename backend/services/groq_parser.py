@@ -86,10 +86,17 @@ def _call_groq(client:Groq, system_prompt:str, user_prompt:str)->str:
             {'role': 'user', 'content': user_prompt}
         ],
         temperature=0.0,
-        max_tokens=4096
+        max_completion_tokens=8192,
+        reasoning_effort='low',
+        include_reasoning=False,
+        response_format={'type': 'json_object'},
     )
 
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    if not content or not content.strip():
+        finish_reason = response.choices[0].finish_reason or 'unknown'
+        raise ValueError(f'Groq returned an empty JSON response (finish reason: {finish_reason})')
+    return content.strip()
 
 def _try_parse_json(text: str) -> dict | None:
 
