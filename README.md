@@ -34,7 +34,7 @@ Most resume checkers provide a single score without explaining how it was calcul
 
 | Layer | Technology | Responsibility |
 | --- | --- | --- |
-| Frontend | Streamlit | Authentication UI, uploads, results, history, and resources |
+| Frontend | React, Vite, TypeScript, Tailwind CSS | Authentication, uploads, results, history, and resources |
 | Backend | FastAPI | API routes, orchestration, authentication, and validation |
 | Resume parsing | pdfplumber, PyPDF2, python-docx | Extract text and hyperlinks from uploaded documents |
 | Structured extraction | Groq, Llama 3.3 70B | Extract resume and job-description data as JSON |
@@ -49,7 +49,7 @@ Most resume checkers provide a single score without explaining how it was calcul
 
 ```mermaid
 flowchart LR
-    U["User"] --> FE["Streamlit frontend"]
+    U["User"] --> FE["React frontend"]
     FE --> SA["Supabase Auth"]
     FE -->|"Resume, job description, JWT"| API["FastAPI backend"]
 
@@ -69,9 +69,9 @@ flowchart LR
 
 ### Main components
 
-#### Streamlit frontend
+#### React frontend
 
-The frontend manages navigation, account state, resume uploads, job-description input, score visualization, feedback, analysis history, and PDF downloads. It sends authenticated requests to FastAPI and never calculates the ATS score itself.
+The responsive React frontend manages navigation, Supabase sessions, validated resume uploads, score visualization, feedback, analysis history, and PDF downloads. It sends authenticated requests to FastAPI and never calculates the ATS score itself.
 
 #### FastAPI backend
 
@@ -95,7 +95,7 @@ Groq converts unstructured resume and job-description text into predictable JSON
 ```mermaid
 sequenceDiagram
     actor User
-    participant UI as Streamlit
+    participant UI as React
     participant Auth as Supabase Auth
     participant API as FastAPI
     participant AI as Groq and NLP models
@@ -170,12 +170,10 @@ ATS_SCORER/
 │   ├── utils/               # File utilities and matching helpers
 │   └── main.py              # FastAPI application entry point
 ├── frontend/
-│   ├── .streamlit/          # Streamlit configuration
-│   ├── assets/              # CSS and static assets
-│   ├── components/          # Reusable result components
-│   ├── services/            # Backend and Supabase clients
-│   ├── views/               # Landing, scorer, history, and resources pages
-│   └── streamlit_app.py     # Streamlit entry point
+│   ├── src/                 # React features, pages, API client, and design system
+│   ├── e2e/                 # Playwright browser tests
+│   ├── package.json         # Frontend dependencies and quality scripts
+│   └── vercel.json          # SPA deployment routing
 ├── jupyter notebooks/
 │   ├── 01_EDA_and_DATA_prep.ipynb
 │   ├── 02_BERT_EMBEDDINGS.ipynb
@@ -239,7 +237,7 @@ SUPABASE_KEY=your-service-role-key
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_JWT_SECRET=your-jwt-secret
 GROQ_API_KEY=your-groq-api-key
-AUTH_REDIRECT_URL=http://localhost:8501
+GROQ_MODEL=openai/gpt-oss-20b
 SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
 ```
 
@@ -252,10 +250,9 @@ Environment-variable responsibilities:
 | `SUPABASE_ANON_KEY` | Yes | Frontend authentication client |
 | `SUPABASE_JWT_SECRET` | Depends on JWT algorithm | Verification of HS256 access tokens |
 | `GROQ_API_KEY` | Yes | Resume and job-description extraction |
-| `AUTH_REDIRECT_URL` | For OAuth | Google OAuth callback URL |
 | `SENTENCE_TRANSFORMER_MODEL` | No | Override the default embedding model |
 
-Never commit `.env`, a service-role key, or Streamlit secrets.
+Never commit `.env`, `.env.local`, or a service-role key.
 
 ### 5. Create the Supabase table
 
@@ -284,9 +281,9 @@ The service-role key bypasses Row Level Security in backend requests. Keep it se
 In Supabase:
 
 1. Enable email/password authentication.
-2. Add `http://localhost:8501` to the allowed redirect URLs.
+2. Add `http://localhost:5173/auth/callback` to the allowed redirect URLs.
 3. Optionally configure Google as an OAuth provider.
-4. Add the production Streamlit URL before deployment.
+4. Add the production Vercel callback URL before deployment.
 
 ### 7. Start the backend
 
@@ -302,15 +299,17 @@ Useful backend URLs:
 
 The first startup downloads the Sentence Transformer model and may take longer than later starts.
 
-### 8. Start the frontend
+### 8. Start the React frontend
 
-Open a second terminal, activate the same environment, and run:
+Create `frontend/.env.local` from `frontend/.env.example`, then run:
 
 ```bash
-streamlit run frontend/streamlit_app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-The application opens at `http://localhost:8501` and connects to the backend at `http://localhost:8000` by default.
+The application opens at `http://localhost:5173` and connects to the backend at `http://localhost:8000` by default. Run `npm run build`, `npm run lint`, and `npm test` before deployment.
 
 ## API overview
 
@@ -381,7 +380,7 @@ The spaCy and embedding models are loaded once during FastAPI startup rather tha
 
 For a larger deployment, I would:
 
-- Run Streamlit and FastAPI as independently scalable services.
+- Run the Vercel React frontend and Render FastAPI backend as independently scalable services.
 - Move long analyses and PDF generation into background workers.
 - Add request queues, rate limits, retries, and timeouts around external APIs.
 - Cache repeated embeddings and batch skill comparisons.
@@ -408,7 +407,7 @@ The parser uses two PDF extraction implementations for resilience. Database hist
 ## Roadmap
 
 - [x] Fix the current startup and Groq parsing defects.
-- [x] Add `.env.example` and Streamlit secrets templates.
+- [x] Add backend and browser-safe frontend environment templates.
 - [x] Add a repeatable Supabase SQL migration and RLS policies.
 - [ ] Expand unit tests for scoring, file parsing, matching, and authentication.
 - [ ] Add integration tests for API and database flows.

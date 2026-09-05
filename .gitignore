@@ -11,6 +11,11 @@ venv/
 env/
 build/
 dist/
+node_modules/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+*.tsbuildinfo
 *.egg-info/
 
 # Local environment variables and application secrets

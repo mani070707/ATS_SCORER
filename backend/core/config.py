@@ -23,7 +23,7 @@ def _csv_env(name: str, default: str) -> list[str]:
 
 ALLOWED_ORIGINS = _csv_env(
     'CORS_ORIGINS',
-    'http://localhost:8501,http://127.0.0.1:8501',
+    'http://localhost:5173,http://127.0.0.1:5173',
 )
 
 #file 
@@ -81,4 +81,3 @@ def validate_runtime_config() -> list[str]:
         errors.append('GROQ_API_KEY is not set')
 
     return errors
-

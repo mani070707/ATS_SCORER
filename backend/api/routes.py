@@ -29,9 +29,19 @@ async def analyze_resume(
 ):
     warnings: List[str] = []
 
-
     nlp      = request.app.state.nlp
     embedder = request.app.state.embedder
+
+    if request.app.state.model_error:
+        raise HTTPException(
+            status_code=503,
+            detail=f'Analysis models failed to load: {request.app.state.model_error}',
+        )
+    if nlp is None or embedder is None:
+        raise HTTPException(
+            status_code=503,
+            detail='Analysis models are warming up. Please retry in a minute.',
+        )
 
 
     try:
@@ -66,7 +76,10 @@ async def analyze_resume(
         )
     except Exception as exc:
         logger.error(f'Full analysis pipeline failed: {exc}')
-        raise HTTPException(status_code=500, detail=f'Analysis pipeline failed: {exc}')
+        raise HTTPException(
+            status_code=503,
+            detail='The analysis provider is temporarily unavailable. Please try again shortly.',
+        )
 
     from backend.models.schemas import ComponentScores
 
@@ -115,7 +128,7 @@ async def analyze_resume(
 
     try:
         from backend.database.supabase_db import save_analysis
-        await save_analysis(user_id, filename, result)
+        await save_analysis(user_id, filename, result, request.state.access_token)
     except Exception as exc:
         logger.warning(f'History save failed (non-blocking): {exc}')
 
@@ -123,19 +136,23 @@ async def analyze_resume(
 
 @router.get('/health')
 async def health_check(request: Request):
-    """Health check — confirms models are loaded and the API is ready."""
+    """Liveness check that remains reachable while free-tier models warm up."""
+    nlp_loaded = request.app.state.nlp is not None
+    embedder_loaded = request.app.state.embedder is not None
+    model_error = request.app.state.model_error
     return {
-        'status':          'healthy',
-        'nlp_loaded':      request.app.state.nlp is not None,
-        'embedder_loaded': request.app.state.embedder is not None,
+        'status':          'error' if model_error else ('healthy' if nlp_loaded and embedder_loaded else 'warming_up'),
+        'nlp_loaded':      nlp_loaded,
+        'embedder_loaded': embedder_loaded,
+        'model_error':     model_error,
     }
 
 @router.get('/history')
-async def get_history(user_id: str = Depends(get_current_user)):
+async def get_history(request: Request, user_id: str = Depends(get_current_user)):
     """Return the signed-in user's past analyses (identity comes from the JWT)."""
     from backend.database.supabase_db import get_user_history
     try:
-        return await get_user_history(user_id)
+        return await get_user_history(user_id, request.state.access_token)
     except Exception as exc:
         logger.error(f'History fetch failed: {exc}')
         raise HTTPException(status_code=500, detail=f'Could not load history: {exc}')
@@ -144,12 +161,13 @@ async def get_history(user_id: str = Depends(get_current_user)):
 @router.delete('/history/{analysis_id}')
 async def delete_history_entry(
     analysis_id: str,
+    request: Request,
     user_id: str = Depends(get_current_user),
 ):
     """Delete one analysis from the signed-in user's history."""
     from backend.database.supabase_db import delete_analysis
     try:
-        success = await delete_analysis(analysis_id, user_id)
+        success = await delete_analysis(analysis_id, user_id, request.state.access_token)
         if not success:
             raise HTTPException(status_code=404, detail='Analysis not found or not owned by this user.')
         return {'status': 'deleted', 'id': analysis_id}
@@ -188,6 +206,7 @@ async def generate_pdf(
 @router.get('/history/{analysis_id}/pdf')
 async def generate_history_pdf(
     analysis_id: str,
+    request: Request,
     user_id: str = Depends(get_current_user),
 ):
     from backend.database.supabase_db import get_user_history
@@ -195,7 +214,7 @@ async def generate_history_pdf(
     from backend.services.pdf_export import generate_combined_pdf
     from fastapi.responses import Response
 
-    history = await get_user_history(user_id)
+    history = await get_user_history(user_id, request.state.access_token)
     analysis_data = next((item["analysis_result"] for item in history if item["id"] == analysis_id), None)
 
     if not analysis_data:

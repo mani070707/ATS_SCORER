@@ -1,6 +1,6 @@
 import logging
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from backend.core.config import SUPABASE_JWT_SECRET, SUPABASE_URL
@@ -59,6 +59,7 @@ def _verify_token(token: str) -> dict:
 
 
 def get_current_user(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> str:
     if creds is None or not creds.credentials:
@@ -105,4 +106,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Token missing subject claim',
         )
+    # Make the verified user's token available to database calls. Supabase RLS
+    # then authorizes each history operation as that user, without a service key.
+    request.state.access_token = creds.credentials
     return user_id

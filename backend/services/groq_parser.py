@@ -8,7 +8,9 @@ from groq import Groq
 logger=logging.getLogger('ats_resume_scorer')
 
 
-GROQ_MODEL='llama-3.3-70b-versatile'
+# Keep the provider model configurable so deployments can switch models without
+# a code release. This default is available on Groq and reliably returns JSON.
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-20b')
 
 _client=None
 
@@ -261,4 +263,3 @@ def _validate_resume_result(result: dict) -> dict:
         proj.setdefault("technologies", [])
 
     return result
-

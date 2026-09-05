@@ -6,20 +6,22 @@ from typing import List, Optional, Dict
 
 logger = logging.getLogger('ats_resume_scorer')
 
-from backend.core.config import SUPABASE_URL, SUPABASE_KEY
+from backend.core.config import SUPABASE_ANON_KEY, SUPABASE_URL
 
-def _get_headers():
-    if not SUPABASE_URL or not SUPABASE_KEY:
+def _get_headers(access_token: str):
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY or not access_token:
         return None
     return {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
         "Prefer": "return=representation"
     }
 
-async def save_analysis(user_id: str, filename: str, analysis_result: Dict) -> Optional[str]:
-    headers = _get_headers()
+async def save_analysis(
+    user_id: str, filename: str, analysis_result: Dict, access_token: str
+) -> Optional[str]:
+    headers = _get_headers(access_token)
     if not headers:
         return None
 
@@ -55,8 +57,8 @@ async def save_analysis(user_id: str, filename: str, analysis_result: Dict) -> O
         logger.error(f"Failed to save analysis to Supabase: {exc}")
         return None
 
-async def get_user_history(user_id: str) -> List[Dict]:
-    headers = _get_headers()
+async def get_user_history(user_id: str, access_token: str) -> List[Dict]:
+    headers = _get_headers(access_token)
     if not headers:
         return []
 
@@ -94,8 +96,8 @@ async def get_user_history(user_id: str) -> List[Dict]:
         logger.error(f"Failed to fetch history from Supabase: {exc}")
         return []
 
-async def delete_analysis(analysis_id: str, user_id: str) -> bool:
-    headers = _get_headers()
+async def delete_analysis(analysis_id: str, user_id: str, access_token: str) -> bool:
+    headers = _get_headers(access_token)
     if not headers:
         return False
 

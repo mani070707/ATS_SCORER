@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -14,7 +15,37 @@ from backend.core.config import(
 )
 from backend.api.routes import router
 
-logger=logging.getLogger('ats_resume_scorer')
+logger = logging.getLogger('uvicorn.error')
+
+
+def _load_models():
+    """Load CPU-heavy NLP models outside the server's startup path."""
+    import spacy
+    from sentence_transformers import SentenceTransformer
+
+    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
+    try:
+        nlp = spacy.load(SPACY_MODEL_PRIMARY)
+        logger.info(f'Loaded {SPACY_MODEL_PRIMARY}')
+    except OSError:
+        logger.warning(f'{SPACY_MODEL_PRIMARY} not found — falling back to {SPACY_MODEL_SECONDARY}')
+        nlp = spacy.load(SPACY_MODEL_SECONDARY)
+        logger.info(f'Loaded {SPACY_MODEL_SECONDARY} (fallback)')
+
+    logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
+    embedder = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
+    logger.info(f'Loaded {SENTENCE_TRANSFORMER_MODEL}')
+    return nlp, embedder
+
+
+async def _initialize_models(app: FastAPI) -> None:
+    try:
+        app.state.nlp, app.state.embedder = await asyncio.to_thread(_load_models)
+        app.state.model_error = None
+        logger.info('All models loaded. API is ready to serve analysis requests.')
+    except Exception as exc:
+        app.state.model_error = str(exc)
+        logger.exception('Model initialization failed')
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
@@ -25,26 +56,16 @@ async def lifespan(app:FastAPI):
         formatted = '\n- '.join(config_errors)
         raise RuntimeError(f'Invalid runtime configuration:\n- {formatted}')
 
-    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
-    import spacy
-    try:
-        app.state.nlp = spacy.load(SPACY_MODEL_PRIMARY)
-        logger.info(f'Loaded {SPACY_MODEL_PRIMARY}')
-    except OSError:
-        logger.warning(f'{SPACY_MODEL_PRIMARY} not found — falling back to {SPACY_MODEL_SECONDARY}')
-        app.state.nlp = spacy.load(SPACY_MODEL_SECONDARY)
-        logger.info(f'Loaded {SPACY_MODEL_SECONDARY} (fallback)')
-
-    logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
-    from sentence_transformers import SentenceTransformer
-    app.state.embedder = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
-    logger.info(f'Loaded {SENTENCE_TRANSFORMER_MODEL}')
-
-    logger.info('All models loaded. API is ready to serve requests.')
+    app.state.nlp = None
+    app.state.embedder = None
+    app.state.model_error = None
+    app.state.model_load_task = asyncio.create_task(_initialize_models(app))
 
     yield
 
-    logger.info('shutting down the api!!')
+    if not app.state.model_load_task.done():
+        app.state.model_load_task.cancel()
+    logger.info('Shutting down the API')
 
 app=FastAPI(
     title=APP_TITLE, 

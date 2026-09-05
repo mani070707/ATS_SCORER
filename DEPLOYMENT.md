@@ -1,97 +1,50 @@
-# Free deployment guide
+# Deployment guide
 
-This project is configured for a Render Free FastAPI backend and a Streamlit
-Community Cloud frontend. Supabase continues to provide authentication and
-database storage.
+The application uses FastAPI on Render and the React frontend on Vercel.
+Supabase provides authentication and analysis history.
 
-## 1. Push the deployment files
+## Backend — Render
 
-```bash
-git add .
-git commit -m "deploy: add Render and Streamlit configuration"
-git push origin main
-```
+Create the service from `render.yaml` and configure:
 
-Confirm that the local secret file is not tracked:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_KEY` (service-role key; never expose it to the browser)
+- `GROQ_API_KEY`
+- `CORS_ORIGINS` (the exact Vercel URL and any approved preview URLs)
 
-```bash
-git ls-files .env
-```
+Wait for `/api/v1/health` to report `healthy`. A sleeping free instance may
+take about a minute to warm up.
 
-The command must print nothing.
+## Frontend — Vercel
 
-## 2. Create the Render backend
-
-1. Open the Render dashboard and choose **New > Blueprint**.
-2. Connect `mani070707/ATS_SCORER` and select `main`.
-3. Render detects `render.yaml` and creates `ats-scorer-api`.
-4. Enter the required secret environment values when prompted:
-
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `SUPABASE_KEY`
-   - `GROQ_API_KEY`
-   - `CORS_ORIGINS` (use `http://localhost:8501` temporarily)
-
-5. Deploy and wait for `/api/v1/health` to report a healthy response.
-
-The Docker image installs `libmagic`, WeasyPrint's Linux libraries, the small
-spaCy model, and a cached lightweight Sentence Transformer.
-
-## 3. Create the Streamlit frontend
-
-In Streamlit Community Cloud, create an app with:
+Import the repository into Vercel with:
 
 ```text
-Repository: mani070707/ATS_SCORER
-Branch: main
-Main file: frontend/streamlit_app.py
+Root Directory: frontend
+Framework Preset: Vite
+Build Command: npm run build
+Output Directory: dist
 ```
 
-Add these Streamlit secrets, replacing the placeholders:
+Configure only these browser-safe values:
 
-```toml
-[supabase]
-SUPABASE_URL = "https://your-project-ref.supabase.co"
-SUPABASE_ANON_KEY = "your-anon-or-publishable-key"
-
-[backend]
-url = "https://ats-scorer-api.onrender.com"
-
-[google_oauth]
-redirect_uri = "https://your-app.streamlit.app"
+```env
+VITE_API_BASE_URL=https://ats-scorer-api.onrender.com
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```
 
-Never add the Supabase service-role key or Groq API key to Streamlit.
+The included `vercel.json` provides SPA route fallback.
 
-## 4. Connect the production URLs
+## Supabase URLs
 
-After Streamlit provides its final URL:
+In **Authentication → URL Configuration**:
 
-1. Set Render's `CORS_ORIGINS` to the exact Streamlit URL without a trailing
-   slash. Keep `http://localhost:8501` as a comma-separated second value if
-   local development should remain allowed.
-2. In Supabase **Authentication > URL Configuration**, set the Site URL to the
-   Streamlit URL.
-3. Add both the Streamlit URL and `http://localhost:8501` to the allowed
-   redirect URLs.
-4. Redeploy Render after changing its environment.
+1. Set the Site URL to the production Vercel URL.
+2. Add `http://localhost:5173/auth/callback` for local development.
+3. Add `https://your-app.vercel.app/auth/callback` for production.
+4. Add preview callback patterns only for trusted preview deployments.
 
-## 5. Verify
-
-Test the backend directly:
-
-```bash
-curl https://ats-scorer-api.onrender.com/api/v1/health
-```
-
-Then test sign-up, sign-in, resume analysis, history, deletion, and PDF export
-from the Streamlit URL.
-
-## Free-tier constraints
-
-Render Free has limited CPU and memory and sleeps after inactivity. The first
-request after sleep can take approximately a minute. The deployment uses
-smaller NLP models to reduce memory, but the process can still exceed the free
-instance's limit. Exit code 137 or an out-of-memory message in Render logs
-means the service needs further optimization or a larger instance.
+After the production URL is known, add it to Render's `CORS_ORIGINS` and
+redeploy. Verify signup, OAuth, analysis, history, deletion, and PDF downloads.
