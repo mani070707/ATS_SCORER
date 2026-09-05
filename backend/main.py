@@ -10,7 +10,7 @@ from backend.core.config import(
     APP_TITLE, 
     APP_VERSION, 
     SPACY_MODEL_PRIMARY, 
-    SPACY_MODEL_SECONDARY, SENTENCE_TRANSFORMER_MODEL,
+    SPACY_MODEL_SECONDARY,
     validate_runtime_config,
 )
 from backend.api.routes import router
@@ -21,7 +21,7 @@ logger = logging.getLogger('uvicorn.error')
 def _load_models():
     """Load CPU-heavy NLP models outside the server's startup path."""
     import spacy
-    from sentence_transformers import SentenceTransformer
+    from backend.services.embedding import HashingTextEmbedder
 
     logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
     try:
@@ -32,9 +32,9 @@ def _load_models():
         nlp = spacy.load(SPACY_MODEL_SECONDARY)
         logger.info(f'Loaded {SPACY_MODEL_SECONDARY} (fallback)')
 
-    logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
-    embedder = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
-    logger.info(f'Loaded {SENTENCE_TRANSFORMER_MODEL}')
+    logger.info('Loading low-memory hashing text embedder')
+    embedder = HashingTextEmbedder()
+    logger.info('Loaded low-memory hashing text embedder')
     return nlp, embedder
 
 

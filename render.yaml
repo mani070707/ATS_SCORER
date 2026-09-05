@@ -22,5 +22,3 @@ services:
         value: en_core_web_sm
       - key: SPACY_MODEL_SECONDARY
         value: en_core_web_sm
-      - key: SENTENCE_TRANSFORMER_MODEL
-        value: paraphrase-MiniLM-L3-v2

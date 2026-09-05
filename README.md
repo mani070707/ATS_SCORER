@@ -238,7 +238,6 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_JWT_SECRET=your-jwt-secret
 GROQ_API_KEY=your-groq-api-key
 GROQ_MODEL=openai/gpt-oss-20b
-SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
 ```
 
 Environment-variable responsibilities:
@@ -250,7 +249,6 @@ Environment-variable responsibilities:
 | `SUPABASE_ANON_KEY` | Yes | Frontend authentication client |
 | `SUPABASE_JWT_SECRET` | Depends on JWT algorithm | Verification of HS256 access tokens |
 | `GROQ_API_KEY` | Yes | Resume and job-description extraction |
-| `SENTENCE_TRANSFORMER_MODEL` | No | Override the default embedding model |
 
 Never commit `.env`, `.env.local`, or a service-role key.
 

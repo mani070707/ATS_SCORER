@@ -3,10 +3,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HOME=/opt/huggingface \
     SPACY_MODEL_PRIMARY=en_core_web_sm \
-    SPACY_MODEL_SECONDARY=en_core_web_sm \
-    SENTENCE_TRANSFORMER_MODEL=paraphrase-MiniLM-L3-v2
+    SPACY_MODEL_SECONDARY=en_core_web_sm
 
 WORKDIR /app
 
@@ -27,14 +25,10 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install -r requirements-backend.txt \
     && python -m spacy download en_core_web_sm
 
-# Cache the small embedding model in the image so cold starts do not depend on
-# downloading it from Hugging Face.
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-MiniLM-L3-v2')"
-
 COPY backend ./backend
 
 RUN useradd --create-home --uid 10001 appuser \
-    && chown -R appuser:appuser /app /opt/huggingface
+    && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 10000
